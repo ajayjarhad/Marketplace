@@ -1,68 +1,84 @@
+//This component will display individual card for each product.
+
+//Importing React,Stripe, and Material UI
 import React, { useState } from "react";
-import "./Product.css";
-import { useStateValue } from "../stateProvider/StateProvider";
 import { loadStripe } from "@stripe/stripe-js";
-function Product({ id, title, price, rating, image }) {
-  const [{}, dispatch] = useStateValue();
-  const addToBasket = () => {
-    //Add item to basket...
-    dispatch({
-      type: "ADD_TO_BASKET",
-      item: {
-        id,
-        title,
-        image,
-        price,
-        rating,
-      },
-    });
-  };
+import {
+  Card,
+  CardActions,
+  CardContent,
+  CardMedia,
+  Button,
+  Typography,
+  Rating,
+} from "@mui/material";
 
-  const stripePromise = loadStripe(
-    "pk_test_51K8TyeSA4k3N3EwFkev9itWmqjgBb3JKGzm10zPbtBZD6JYlIE35d7Dgq6EHXnBl39XvnddS86oUV4v8lRI72Vev00LGYgw6WA"
-  );
-  const [loading, setLoading] = useState();
+function Product({ title, price, rating, image, price_api, isLoggedIn }) {
+  const stripePromise = loadStripe(process.env.REACT_APP_STRIPE_API); //Replace this with your own Stripe API key
+  const [loading, setLoading] = useState(); //Using this to disable the Buy now button until checkout completes
   const handleClick = async () => {
-    setLoading(true);
-    const stripe = await stripePromise;
-    const { error } = await stripe.redirectToCheckout({
-      lineItems: [
-        {
-          price: "price_1K8hBASA4k3N3EwFN5SHAe4g",
-          quantity: 1,
-        },
-      ],
-      mode: "payment",
-      cancelUrl: "http://localhost:3000",
-      successUrl: "http://localhost:3000/home",
-    });
-    if (error) {
-      setLoading(false);
-      console.log("The error ", error);
-    }
+    //This fuction perform Stripe's client only checkout.
+    if (isLoggedIn) {
+      //Check if user is signed in.
+      setLoading(true);
+      const stripe = await stripePromise;
+      const { error } = await stripe.redirectToCheckout({
+        lineItems: [
+          {
+            price: price_api, //This is unique product_price_id we get from stripe, in here I am using Canonic's CMS holds this ID
+            quantity: 1,
+          },
+        ],
+        mode: "payment",
+        cancelUrl: "https://canonic-marketplace.netlify.app/", //You can replace this with your domain
+        successUrl: "https://canonic-marketplace.netlify.app/", //You can replace this with your domain
+      });
+      if (error) {
+        setLoading(false);
+        console.log("The error ", error);
+      }
+    } else alert("Please log in to continue");
   };
-
   return (
-    <div className="product">
-      <div className="product__info">
-        <p>{title}</p>
-        <p className="product__price">
-          <small>$</small>
-          <strong>{price}</strong>
-        </p>
-        <div className="product__rating">
-          {Array(rating)
-            .fill()
-            .map((index) => (
-              <i key={index} class="fa fa-star"></i>
-            ))}
-        </div>
-      </div>
-      <img src={image} alt="" />
-      <button onClick={handleClick} disabled={loading}>
-        Add to basket
-      </button>
-    </div>
+    <Card
+      sx={{
+        maxHeight: 450,
+        minWidth: 100,
+        width: "25%",
+        margin: "1.5rem",
+        display: "flex",
+        flexDirection: "column",
+        justifyContent: "space-between",
+        alignItems: "start",
+      }}
+    >
+      <CardMedia
+        component="img"
+        alt="title"
+        height="auto"
+        image={image}
+        sx={{ objectFit: "contain", maxHeight: "200px" }}
+      />
+      <CardContent>
+        <Typography gutterBottom variant="h5" component="div">
+          {title}
+        </Typography>
+        <Typography gutterBottom variant="h5" component="div">
+          ${price}
+        </Typography>
+        <Rating name="read-only" value={rating} readOnly />
+      </CardContent>
+      <CardActions>
+        <Button
+          variant="contained"
+          size="small"
+          onClick={handleClick} //Here listening for onClick function in order to trigger Stripe's client only checkout
+          disabled={loading}
+        >
+          Buy now
+        </Button>
+      </CardActions>
+    </Card>
   );
 }
 
